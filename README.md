@@ -5,14 +5,14 @@ This activity is the start page of the application. It will display the user tha
 ![1](https://cloud.githubusercontent.com/assets/8810802/12800916/6caedf70-caa6-11e5-9e48-8d078ef349fc.png)
 2.	BoardActivity:
 This activity handles the main game. It displays the main board in which the user can play and reports lets the user choose the tiles and report the scores. This activity communicates with the logic of the game so that it can display accordingly. For example,
- 
+![2](https://cloud.githubusercontent.com/assets/8810802/12800915/6cae9696-caa6-11e5-84d6-931b4eebbc0b.png)
 The image above displays the main board and the choices that the user have (Random/User’s choice). Then,
- 
+![3](https://cloud.githubusercontent.com/assets/8810802/12800914/6cad7040-caa6-11e5-84fb-407f0eea3def.png)
 This image shows the tile the user selected. When the user places the tile on the board, it looks like:
- 
+![4](https://cloud.githubusercontent.com/assets/8810802/12800917/6caff40a-caa6-11e5-83e0-f40a9ff8ffb9.png)
 3.	GameOver:
 This activity shows the user that the game is over and displays the score of the user. It lets them restart the game or exit the application.
- 
+![5](https://cloud.githubusercontent.com/assets/8810802/12800918/6cb209fc-caa6-11e5-87db-fa45ab64b243.png)
 ## AI:
 AI algorithm is used after every tile placed by user. It is used to determine if the user has tiles left to place, but the board does not allow the placements due to Ishido rules. Once the user strikes such situation, the game is directed towards GameOver activity.
 The method that uses this algorithm is checkTileAvailability() which is under isDone() in Board class.

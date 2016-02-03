@@ -13,6 +13,7 @@ This image shows the tile the user selected. When the user places the tile on th
 3.	GameOver:
 This activity shows the user that the game is over and displays the score of the user. It lets them restart the game or exit the application.
 ![5](https://cloud.githubusercontent.com/assets/8810802/12800918/6cb209fc-caa6-11e5-87db-fa45ab64b243.png)
+
 ## AI:
 AI algorithm is used after every tile placed by user. It is used to determine if the user has tiles left to place, but the board does not allow the placements due to Ishido rules. Once the user strikes such situation, the game is directed towards GameOver activity.
 The method that uses this algorithm is checkTileAvailability() which is under isDone() in Board class.

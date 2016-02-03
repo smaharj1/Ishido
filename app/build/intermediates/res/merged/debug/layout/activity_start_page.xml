@@ -1,0 +1,53 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
+    android:layout_height="match_parent" android:paddingLeft="0dp"
+    android:paddingRight="0dp"
+    android:paddingTop="0dp"
+    android:paddingBottom="0dp"
+    android:orientation="vertical"
+    tools:context="com.ishido.StartPageActivity"
+    android:weightSum="1"
+    android:id="@+id/allView"
+    android:background="#fcebb6">
+
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="ISHIDO"
+        android:id="@+id/textView2"
+        android:gravity="center"
+        android:layout_gravity="center_horizontal"
+        android:textColor="#5E412F"
+        android:textStyle="bold"
+        android:typeface="sans"
+        android:textSize="200sp"
+        android:layout_marginTop="30dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="THE WAY OF STONES"
+        android:id="@+id/textView3"
+        android:textColor="#5E412F"
+        android:textSize="60sp"
+        android:layout_gravity="center_horizontal"
+        android:gravity="center"
+        android:textStyle="italic" />
+
+    <Button
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="START"
+        android:id="@+id/startGame"
+        android:background="#f0a830"
+        android:layout_marginTop="30dp"
+        android:textColor="#5E412F"
+        android:textSize="60dp"
+        android:onClick="playGame" />
+
+
+</LinearLayout>
+<!-- From: file:/D:/AI/Ishido/app/src/main/res/layout/activity_start_page.xml -->

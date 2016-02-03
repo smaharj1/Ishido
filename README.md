@@ -14,11 +14,11 @@ This image shows the tile the user selected. When the user places the tile on th
 This activity shows the user that the game is over and displays the score of the user. It lets them restart the game or exit the application.
  
 ## AI:
-	AI algorithm is used after every tile placed by user. It is used to determine if the user has tiles left to place, but the board does not allow the placements due to Ishido rules. Once the user strikes such situation, the game is directed towards GameOver activity.
-	The method that uses this algorithm is checkTileAvailability() which is under isDone() in Board class.
+AI algorithm is used after every tile placed by user. It is used to determine if the user has tiles left to place, but the board does not allow the placements due to Ishido rules. Once the user strikes such situation, the game is directed towards GameOver activity.
+The method that uses this algorithm is checkTileAvailability() which is under isDone() in Board class.
 
 ## BUG REPORT:
-a.	I couldn’t figure out the org.problets.helloworld.R problem. I tried changing the package name, but it then gave me errors in activity classes. So, I just kept the prior since it removed all the errors.
+I couldn’t figure out the org.problets.helloworld.R problem. I tried changing the package name, but it then gave me errors in activity classes. So, I just kept the prior since it removed all the errors.
 
 ## FEATURES:
 ###	Implemented:

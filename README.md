@@ -2,7 +2,7 @@
 ## Activities
 1.	StartPageActivity:
 This activity is the start page of the application. It will display the user that this is the “Ishido Game” and let the player start the game.
- 
+![1](https://cloud.githubusercontent.com/assets/8810802/12800916/6caedf70-caa6-11e5-9e48-8d078ef349fc.png)
 2.	BoardActivity:
 This activity handles the main game. It displays the main board in which the user can play and reports lets the user choose the tiles and report the scores. This activity communicates with the logic of the game so that it can display accordingly. For example,
  

@@ -46,7 +46,6 @@ public class GameOver extends AppCompatActivity {
     }
 
     public void exitApp(View view) {
-
         finish();
         System.exit(0);
     }

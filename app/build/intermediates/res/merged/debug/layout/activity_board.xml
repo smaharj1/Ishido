@@ -32,20 +32,28 @@
         <Spinner
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:id="@+id/userChoices"
-
-             />
+            android:id="@+id/searchChoice"
+            android:layout_weight="1" />
 
         <Button
+            style="?android:attr/buttonStyleSmall"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Confirm"
-            android:id="@+id/userInput"
-            android:onClick="calculateTile"
-             />
+            android:text="OK"
+            android:id="@+id/searchOK"
+            android:onClick="searchHandle" />
 
 
     </LinearLayout>
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Next"
+        android:id="@+id/next"
+        android:layout_gravity="center_horizontal"
+        android:clickable="false"
+        android:onClick="initiateGame" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -55,30 +63,6 @@
         android:visibility="invisible"
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="10dp"
-        android:layout_marginBottom="10dp" />
-
-    <Spinner
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/colorChoices"
-        android:visibility="invisible"
-        android:layout_gravity="center_horizontal" />
-
-    <Spinner
-        android:layout_width="150dp"
-        android:layout_height="wrap_content"
-        android:id="@+id/symbolChoices"
-        android:visibility="invisible"
-        android:layout_gravity="center_horizontal" />
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Generate"
-        android:id="@+id/generate"
-        android:visibility="invisible"
-        android:onClick="recordUserInput"
-        android:layout_gravity="center_horizontal"
         android:layout_marginBottom="10dp" />
 
     <TextView

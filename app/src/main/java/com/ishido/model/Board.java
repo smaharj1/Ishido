@@ -11,12 +11,12 @@ package com.ishido.model;
  * Holds the game board and updates the board
  * Created by Tsujil on 1/26/2016.
  */
-public class Board {
+public class Board implements Cloneable{
     // Total number of rows
-    private final int TOTAL_ROWS = 8;
+    public static final int TOTAL_ROWS = 8;
 
     // Total number of columns in the board
-    private final int TOTAL_COLUMNS = 12;
+    public static final int TOTAL_COLUMNS = 12;
 
     // Two dimensional array of tiles with their respective information
     private TileInfo board[][] = new TileInfo[TOTAL_ROWS][TOTAL_COLUMNS];
@@ -43,6 +43,10 @@ public class Board {
         return board[row][column] == null;
     }
 
+    public TileInfo getTile(int row, int column) {
+        return board[row][column];
+    }
+
     /**
      * Fills the tile with TileInfo in the given cell by verifying if it can be placed.
      *
@@ -54,6 +58,9 @@ public class Board {
     public boolean fillTile(int row, int column, TileInfo tile) {
         boolean isNull = true;
 
+        if (board[row][column]!= null) {
+            return false;
+        }
         // First verify if we can place the tile. If yes, then check with the tiles on the four sides if there is any rules restricting it from being placed.
         if (column > 0) {
             if (board[row][column - 1] != null) {
@@ -270,5 +277,45 @@ public class Board {
             }
         }
         return false;
+    }
+
+    // boardInfo will have eight rows of string with 12 columns in each row
+    public void fillBoard(String[] boardInfo, Deck deck ) {
+        for (int rowIndex = 0; rowIndex<TOTAL_ROWS; ++rowIndex) {
+            String temp = boardInfo[rowIndex];
+
+            String[] values = temp.split(" ");
+
+            for (int columnIndex=0; columnIndex < TOTAL_COLUMNS; columnIndex++) {
+                int numericValue = Integer.parseInt(values[columnIndex]);
+
+                if (numericValue != 0) {
+                    TileInfo tile = calculateTile(numericValue);
+
+                    fillTile(rowIndex, columnIndex, tile);
+                    deck.recordTile(tile.getNumericColorVal(),tile.getNumericSymbolVal());
+                }
+                else {
+                    TileInfo tile = null;
+
+                }
+            }
+        }
+    }
+
+    public static TileInfo calculateTile(int tileValue) {
+        int colorVal = (tileValue/10)-1;
+        int symbolVal = (tileValue%10)-1;
+
+        TileInfo tile = new TileInfo();
+        tile.setColor(colorVal);
+        tile.setSymbol(symbolVal);
+
+        return tile;
+    }
+
+    public Object clone() throws CloneNotSupportedException {
+        Board cloning = (Board)super.clone();
+        return cloning;
     }
 }

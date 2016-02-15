@@ -11,7 +11,7 @@ import java.util.Random;
 /**
  * Deck keeps track of the tiles that have already been dealth and deal the next tile in random model
  */
-public class Deck {
+public class Deck implements Cloneable{
     // Declares the total number of colors and symbols
     private final int ROW_COLUMN_NUMBER = 6;
 
@@ -81,8 +81,10 @@ public class Deck {
      * @param symbol Symbol of the provided tile
      */
     public void recordTile(int color, int symbol) {
-        deckEntries[color][symbol]++;
-        totalTilesUsed++;
+        if (verifyTile(color,symbol)) {
+            deckEntries[color][symbol]++;
+            totalTilesUsed++;
+        }
     }
 
     /**
@@ -106,4 +108,8 @@ public class Deck {
         return ROW_COLUMN_NUMBER;
     }
 
+    public Object clone() throws CloneNotSupportedException {
+        Deck cloning = (Deck)super.clone();
+        return cloning;
+    }
 }

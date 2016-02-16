@@ -55,7 +55,7 @@ public class Board implements Cloneable{
      * @param tile   TileInfo provided
      * @return Returns if writing to the cell is successful or not
      */
-    public boolean fillTile(int row, int column, TileInfo tile) {
+    public boolean canFillTile(int row, int column, TileInfo tile) {
         boolean isNull = true;
 
         if (board[row][column]!= null) {
@@ -66,7 +66,7 @@ public class Board implements Cloneable{
             if (board[row][column - 1] != null) {
                 isNull = false;
                 if ((tile.getNumericColorVal() == board[row][column - 1].getNumericColorVal()) || (tile.getNumericSymbolVal() == board[row][column - 1].getNumericSymbolVal())) {
-                    board[row][column] = tile;
+                    //board[row][column] = tile;
                     //System.out.println("Color: " + board[row][column].getNumericColorVal() + " Symbol: " + board[row][column].getNumericSymbolVal());
                     return true;
                 }
@@ -76,7 +76,7 @@ public class Board implements Cloneable{
             if (board[row][column + 1] != null) {
                 isNull = false;
                 if ((tile.getNumericColorVal() == board[row][column + 1].getNumericColorVal()) || (tile.getNumericSymbolVal() == board[row][column + 1].getNumericSymbolVal())) {
-                    board[row][column] = tile;
+                    //board[row][column] = tile;
                     //System.out.println("Color: " + board[row][column].getNumericColorVal() + " Symbol: " + board[row][column].getNumericSymbolVal());
                     return true;
                 }
@@ -86,7 +86,7 @@ public class Board implements Cloneable{
             if (board[row - 1][column] != null) {
                 isNull = false;
                 if ((tile.getNumericColorVal() == board[row - 1][column].getNumericColorVal()) || (tile.getNumericSymbolVal() == board[row - 1][column].getNumericSymbolVal())) {
-                    board[row][column] = tile;
+                    //board[row][column] = tile;
                     return true;
                 }
             }
@@ -95,7 +95,7 @@ public class Board implements Cloneable{
             if (board[row + 1][column] != null) {
                 isNull = false;
                 if ((tile.getNumericColorVal() == board[row + 1][column].getNumericColorVal()) || (tile.getNumericSymbolVal() == board[row + 1][column].getNumericSymbolVal())) {
-                    board[row][column] = tile;
+                    //board[row][column] = tile;
 
                     return true;
                 }
@@ -104,13 +104,21 @@ public class Board implements Cloneable{
 
         // If there is nothing on the sides, then place the tile
         if (isNull == true) {
-            board[row][column] = tile;
+            //board[row][column] = tile;
 
             return true;
         }
 
         //System.out.println("end of conditions");
         return false;
+    }
+
+    public void fillTile(int row, int col, TileInfo tile) {
+        board[row][col] = tile;
+    }
+
+    public void removeTile(int row, int col) {
+        board[row][col] = null;
     }
 
     /**

@@ -67,7 +67,8 @@ public class SearchModel implements Cloneable{
         // Perform availability search from the first tile in the board
         for (int row=0; row < Board.TOTAL_ROWS; ++row ) {
             for (int col = 0; col < Board.TOTAL_COLUMNS; ++col) {
-                if (board.fillTile(row, col, tile)) {
+                if (board.canFillTile(row, col, tile)) {
+                    board.fillTile(row, col, tile);
                     deck.recordTile(tile.getNumericColorVal(),tile.getNumericSymbolVal());
                     return new TableCoordinates(row,col);
                 }

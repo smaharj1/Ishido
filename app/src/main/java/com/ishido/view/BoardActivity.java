@@ -28,12 +28,15 @@ import com.ishido.model.FileAccess;
 import com.ishido.model.Player;
 import com.ishido.model.TableCoordinates;
 import com.ishido.model.TileInfo;
+import com.ishido.model.TileTree;
 
 import org.problets.helloworld.R;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 
 /**
@@ -42,6 +45,7 @@ import java.util.Queue;
 
 public class BoardActivity extends Activity implements Cloneable{
 	private final String MESSAGE="score";
+	private final int DEFAULT_COLOR = Color.parseColor("#FCEBB6");
 	public static final int DFS= 0;
 	public static final int BFS = 1;
 
@@ -56,6 +60,15 @@ public class BoardActivity extends Activity implements Cloneable{
 	private Animation anim;
 	private int searchType;
 
+	private Map locationsForTile = new HashMap();
+
+	private TileInfo currentTile = new TileInfo();
+
+	// Queue for the BFS
+	Queue<TileTree> bfsTree = new LinkedList<TileTree>();
+	private boolean needNewTile = true;
+	TableCoordinates startingLocation = new TableCoordinates(0,0);
+	TileTree previousInQueue = new TileTree();
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -180,7 +193,7 @@ public class BoardActivity extends Activity implements Cloneable{
 				TileInfo boardTile = board.getTile(rowIndex, columnIndex);
 				if (boardTile == null) {
 					columns.setText("");
-					columns.setBackgroundColor(Color.parseColor("#FCEBB6"));
+					columns.setBackgroundColor(DEFAULT_COLOR);
 				}
 				else {
 					columns.setText(boardTile.getSymbol());
@@ -207,11 +220,10 @@ public class BoardActivity extends Activity implements Cloneable{
 		Spinner spinner = (Spinner) findViewById(R.id.searchChoice);
 		int selectedIndex = spinner.getSelectedItemPosition();
 
-
-
 		Button nextButton = (Button) findViewById(R.id.next);
 		if (nextButton.isEnabled()) {
 			refreshSearchTable();
+			setTheStock(fileAccess.getStock());
 		}
 
 		searchType = selectedIndex;
@@ -226,7 +238,7 @@ public class BoardActivity extends Activity implements Cloneable{
 		board = new Board();
 		deck = new Deck();
 		//searchModel = new SearchModel(board,deck);
-		setTheStock(fileAccess.getStock());
+		//setTheStock(fileAccess.getStock());
 		board.fillBoard(fileAccess.getBoardData(), deck);
 		makeTable();
 		player = new Player();
@@ -244,26 +256,347 @@ public class BoardActivity extends Activity implements Cloneable{
 			Toast.makeText(getApplicationContext(),"All of the tiles done!" , Toast.LENGTH_SHORT).show();
 			return;
 		}
-
 		if (searchType == DFS) {
-			calculateDFS();
+			performDFS();
 		}
-
+		else if (searchType == BFS) {
+			performBFS();
+		}
 
 	}
 
-	private void calculateDFS() {
+	public void performBFS() {
+		if (needNewTile) {
+			// First get the new tile from the stock
+			if (!stockQueue.isEmpty()) {
+				int tileInteger = stockQueue.remove();
+				currentTile = Board.calculateTile(tileInteger);
+
+				needNewTile = false;
+				//stationaryTile.push(new TileTree(currentTile,new TableCoordinates(-1,-1)));
+			}
+		}
+
+		// Since we need to set a new tile once previous tile is done, check it with startingCoordinates
+		if (startingLocation.getRow() == -1 ){
+			// At this point, we need to access the queue for first element (remove from queue)
+			TileTree firstElement = bfsTree.remove();
+
+			refreshSearchTable();
+
+			// Check if the existing number has masters. IF yes, then it means print the masters before printing this tile
+			if (!firstElement.getMasterTileTree().isEmpty())  {
+				// Print all of the masters. Then print the new one
+				TileTree master = firstElement.getMasterTileTree();
+				while (!master.isEmpty()) {
+					// If master is not empty, print the master first and then go through printing the childs
+					board.fillTile(master.getCoordinates().getRow(), master.getCoordinates().getColumn(), master.getTile());
+					deck.recordTile(master.getTile().getNumericColorVal(), master.getTile().getNumericSymbolVal());
+
+					TextView tempView  = findViewInTable(new TableCoordinates(master.getCoordinates().getRow(),master.getCoordinates().getColumn()));
+					tempView.setText(master.getTile().getSymbol());
+					tempView.setBackgroundColor(master.getTile().getColor());
+
+					master = master.getMasterTileTree();
+				}
+			}
+
+
+
+			// The removed tile should be fixed to the given position
+			TableCoordinates elementCoord = firstElement.getCoordinates();
+			TileInfo elementInfo = firstElement.getTile();
+
+			if (board.canFillTile(elementCoord.getRow(),elementCoord.getColumn(),elementInfo)) {
+				board.fillTile(elementCoord.getRow(), elementCoord.getColumn(), elementInfo);
+				deck.recordTile(elementInfo.getNumericColorVal(), elementInfo.getNumericSymbolVal());
+			}
+			else {
+				System.out.println("Cannot fill in "+elementCoord.getRow()+" " + elementCoord.getColumn()+" since it is already taken");
+				return;
+			}
+
+			// draw
+			TextView box = findViewInTable(new TableCoordinates(elementCoord.getRow(),elementCoord.getColumn()));
+			box.setText(elementInfo.getSymbol());
+			box.setBackgroundColor(elementInfo.getColor());
+
+			// Check if the current tile we traversed is same as the one removed from the queue. If yes, then generate new tile. Else, stick with currentTile
+			// The tiles are same means that previously held TileTree obj should be removed
+			if (!previousInQueue.isEmpty()) {
+				// This means we had something previously in the queue. So, check if the previous tiletree has same tileinfo as new one.
+				// If yes, then, delete the previous tiletree from the board and deck and tablelayout
+
+				if (previousInQueue.getTile() == elementInfo) {
+					needNewTile = false;
+
+					System.out.println("Entering the condition when previous tile from queue and new tile in queue are SAME");
+					board.removeTile(previousInQueue.getCoordinates().getRow(), previousInQueue.getCoordinates().getColumn());
+					deck.removeFromDeck(previousInQueue.getTile().getNumericColorVal(), previousInQueue.getTile().getNumericSymbolVal());
+
+					// Now clear it from the table in screen
+					box = findViewInTable(new TableCoordinates(previousInQueue.getCoordinates().getRow(), previousInQueue.getCoordinates().getColumn()));
+					if (box != null) {
+						box.setText("");
+						box.setBackgroundColor(DEFAULT_COLOR);
+					}
+				}
+				else {
+					// we need a new tile to play with
+					needNewTile = true;
+
+					refreshSearchTable();
+
+					// The removed tile should be fixed to the given position
+					//elementCoord = firstElement.getCoordinates();
+					//elementInfo = firstElement.getTile();
+
+					//board.fillTile(elementCoord.getRow(), elementCoord.getColumn(), elementInfo);
+					//deck.recordTile(elementInfo.getNumericColorVal(), elementInfo.getNumericSymbolVal());
+
+					// Go through the master tile for elementInfo since at this point we need to retrieve all of the previous tileTree for this combination
+					TileTree masterTileTree = firstElement;
+					while(!masterTileTree.isEmpty()) {
+						TableCoordinates masterCoordinates = masterTileTree.getCoordinates();
+						TileInfo masterTileInfo = masterTileTree.getTile();
+
+						System.out.println("We are getting the master to put it down in the board");
+						board.fillTile(masterCoordinates.getRow(), masterCoordinates.getColumn(), elementInfo);
+						deck.recordTile(masterTileInfo.getNumericColorVal(), masterTileInfo.getNumericSymbolVal());
+
+						// This means the master of the tile tree (previous tile positions) in this tile's hierarchy
+						// Draw it in the table
+						box = findViewInTable(new TableCoordinates(masterCoordinates.getRow(), masterCoordinates.getColumn()));
+						System.out.println("The master for " +elementInfo.getSymbol()+ " is " + masterTileInfo.getSymbol() + " symbol" + masterCoordinates.getRow() + "  " +masterCoordinates.getColumn());
+						box.setText(masterTileInfo.getSymbol());
+						box.setBackgroundColor(masterTileInfo.getColor());
+
+						masterTileTree = masterTileTree.getMasterTileTree();
+						//System.out.println("The new master is " + masterTileTree.getTile().getSymbol());
+					}
+				}
+
+
+			}
+			else needNewTile = true;
+
+			// Since we managed the stack first, now push the new tiletree
+			// Push it to stack stationaryTileTree
+			previousInQueue = firstElement;
+
+			// Check if we need a new element is needed
+			if (needNewTile) {
+				if (!stockQueue.isEmpty()) {
+					int tileInteger = stockQueue.remove();
+					currentTile = Board.calculateTile(tileInteger);
+
+					needNewTile = false;
+				}
+			}
+
+			// Then startingLocations should be set from beginning for the new tile
+			startingLocation.setColumn(0);
+			startingLocation.setRow(0);
+		}
+
+
+
+		// Then find the available coordinates for each. Once found, put it in the queue as a TileTree object
+		for (int row = startingLocation.getRow(); row < Board.TOTAL_ROWS; ++row) {
+			for (int col = startingLocation.getColumn(); col <Board.TOTAL_COLUMNS; ++col) {
+				if (board.canFillTile(row, col, currentTile)) {
+					// Create a new TileTree with that tile and coordinates and point its previous tile to the previous tiletree
+
+					TileTree tileTree = new TileTree(currentTile,previousInQueue, new TableCoordinates(row,col));
+					if (previousInQueue.isEmpty()) {
+						System.out.println("The previous tile for " + tileTree.getTile().getSymbol() + " is NULL");
+					}
+					else {
+						System.out.println("The previous tile for " +tileTree.getTile().getSymbol() +" is " + tileTree.getMasterTileTree().getTile().getSymbol());
+					}
+
+					// Push it into the queue
+					bfsTree.add(tileTree);
+
+					// Make sure same cell in the table is not visited next
+					if (col <11) startingLocation.setColumn(col+1);
+					else if (row <7){
+						startingLocation.setRow(row+1);
+						startingLocation.setColumn(0);
+					}
+					else {
+						startingLocation.setRow(-1);
+						startingLocation.setColumn(-1);
+					}
+
+					// Now draw that tile on the table
+					drawTile(row,col,currentTile);
+
+					return;
+				}
+
+			}
+		}
+
+		// At this point, it is certain that none of the tiles are available.
+		// So, set startingLocation to -1
+		startingLocation.setRow(-1);
+		startingLocation.setColumn(-1);
+
+		// Once done, remove first TileTree from queue and make it stationary
+	}
+
+/*
+	private void performBFS() {
+
+		// Checks if the savedTiles is empty or not. It means that the search just started.
+		if (locationsForTile.isEmpty()) {
+			// Get the tile from the stock
+			int tileInteger = stockQueue.remove();
+			currentTile = Board.calculateTile(tileInteger);
+
+			// currentTile represents the tile and the linkedlist represents all of the available coordinates for this tile
+			locationsForTile.put(currentTile, new LinkedList<TableCoordinates>());
+
+		}
+		else if (startingLocation.getRow() == -1){
+			// Refresh the whole board since we have to start from the beginning
+			refreshSearchTable();
+
+			// Handles if the previous tile we had is done checking available locations in all the cells
+			// First place the previous tiles in their first locations
+			Iterator tileIterator = locationsForTile.entrySet().iterator();
+			while (tileIterator.hasNext()) {
+				Map.Entry pair = (Map.Entry)tileIterator.next();
+				currentTile = (TileInfo) pair.getKey();
+
+
+				Queue<TableCoordinates> tempQueue = (Queue<TableCoordinates>) pair.getValue();
+
+				// Lets say this is the first tile. We want to make sure the first tile exhausts upto the last location before we set the second tile in a certain position
+				if (tempQueue.isEmpty()) {
+					// This means the T1 has exhausted for all combinations of T2
+				}
+				else {
+					TableCoordinates firstLocation = tempQueue.remove();
+
+					// Since we already know that firstLocation is the available location, we dont need to verify from board
+					// Add the retrieved tile in the location retrieved
+					board.fillTile(firstLocation.getRow(), firstLocation.getColumn(), currentTile);
+					deck.recordTile(currentTile.getNumericColorVal(), currentTile.getNumericSymbolVal());
+
+					// Draw the box for the current tile in reserve
+					TextView box = findViewInTable(new TableCoordinates(firstLocation.getRow(), firstLocation.getColumn()));
+					box.setText(currentTile.getSymbol());
+					box.setBackgroundColor(currentTile.getColor());
+
+
+					break;
+				}
+
+				// Retrieve the new tile from the stock
+				int tileInteger = stockQueue.remove();
+				currentTile = Board.calculateTile(tileInteger);
+
+				// currentTile represents the tile and the linkedlist represents all of the available coordinates for this tile
+				locationsForTile.put(currentTile, new LinkedList<TableCoordinates>());
+
+
+				//tileIterator.remove();
+			}
+
+
+
+			// Assign the starting location to be from the beginning again for the new tile
+			startingLocation.setRow(0);
+			startingLocation.setColumn(0);
+		}
+
+		// Checks if tile is null
+		if (currentTile != null) {
+			// Find all of the available locations for the one tile first
+			for (int row=startingLocation.getRow(); row < Board.TOTAL_ROWS; ++row ) {
+				for (int col = startingLocation.getColumn(); col < Board.TOTAL_COLUMNS; ++col) {
+					if (board.canFillTile(row, col, currentTile)) {
+						//board.fillTile(row, col, currentTile);
+						//deck.recordTile(currentTile.getNumericColorVal(), currentTile.getNumericSymbolVal());
+
+						// Add it to the total available locations for that tile
+						Queue<TableCoordinates> addLocation = (Queue<TableCoordinates>) locationsForTile.get(currentTile);
+						addLocation.add(new TableCoordinates(row,col));
+
+						// update the starting location for the next tile
+						if (col <11) startingLocation.setColumn(col+1);
+						else if (row <7){
+							startingLocation.setRow(row+1);
+							startingLocation.setColumn(0);
+						}
+						else {
+							startingLocation.setRow(-1);
+							startingLocation.setColumn(-1);
+						}
+
+						//System.out.println("The starting location now is " + startingLocation.getRow() + "  " + startingLocation.getColumn());
+						// Fills the tile in the screen
+						drawTile(row,col,currentTile);
+
+						// Generates and adds the score of the player
+						player.addScore(board.calculateScore(row, col, currentTile));
+
+						// Prints and updates the player score
+						TextView playerScore = (TextView) findViewById(R.id.playerScore);
+						playerScore.setText("" + player.getScore());
+
+						// Remove the score again since nothing is fixed
+						player.removeScore(board.calculateScore(row, col, currentTile));
+
+						return;
+					}
+				}
+			}
+		}
+
+	}
+*/
+
+	private void drawTile(int row, int col, TileInfo tileInfo) {
+
+		TextView box = findViewInTable(new TableCoordinates(row,col));
+		if (box != null) {
+			box.setText(tileInfo.getSymbol());
+			box.setBackgroundColor(tileInfo.getColor());
+			//System.out.println("ole inside yea");
+
+			if (currentBox != null) {
+				currentBox.clearAnimation();
+
+				// If we are dealing with the same tile, then remove all the functions from the currentBox to default
+				currentBox.setText("");
+				currentBox.setBackgroundColor(DEFAULT_COLOR);
+			}
+			currentBox = box;
+
+			currentBox.startAnimation(anim);
+
+		}
+		//System.out.println("Always");
+
+	}
+	/**
+	 * Performs the whole Depth First Search
+	 */
+	private void performDFS() {
 		int tileInteger = stockQueue.remove();
 
 		TileInfo tile = Board.calculateTile(tileInteger);
 
 		// Enters the tile in the board and deck according to search preferred and returns the table coordinates where the tile was placed
 		// Returns null if the tile could not be placed anywhere
-		//TableCoordinates inputCoordinates = searchModel.getAvailableCoordinate(tile);
 
 		for (int row=0; row < Board.TOTAL_ROWS; ++row ) {
 			for (int col = 0; col < Board.TOTAL_COLUMNS; ++col) {
-				if (board.fillTile(row, col, tile)) {
+				if (board.canFillTile(row, col, tile)) {
+					board.fillTile(row,col,tile);
 					deck.recordTile(tile.getNumericColorVal(),tile.getNumericSymbolVal());
 					TextView box = findViewInTable(new TableCoordinates(row,col));
 					if (box != null) {

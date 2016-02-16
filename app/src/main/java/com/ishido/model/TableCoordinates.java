@@ -37,5 +37,13 @@ public class TableCoordinates {
         return column;
     }
 
+    public void setRow(int r) {
+        row = r;
+    }
+
+    public void setColumn(int col) {
+        column = col;
+    }
+
 
 }

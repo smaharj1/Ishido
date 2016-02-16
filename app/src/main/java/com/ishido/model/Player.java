@@ -37,5 +37,8 @@ public class Player {
         return score;
     }
 
+    public void removeScore(int value) {
+        score -= value;
+    }
 
 }

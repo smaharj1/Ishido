@@ -33,6 +33,10 @@ public class Deck implements Cloneable{
         totalTilesUsed = 0;
     }
 
+    public void removeFromDeck(int color, int symbol) {
+        deckEntries[color][symbol]--;
+        totalTilesUsed--;
+    }
     /**
      * Generates the tile for the random model
      *

@@ -322,8 +322,16 @@ public class Board implements Cloneable{
         return tile;
     }
 
-    public Object clone() throws CloneNotSupportedException {
-        Board cloning = (Board)super.clone();
-        return cloning;
+    // Finds the next available location starting the search from the given row and column
+    public TableCoordinates findNextAvailableLocation(int row, int col, TileInfo tile) {
+        for (int rowIndex = row; rowIndex<TOTAL_ROWS; rowIndex++) {
+            for (int colIndex = col; colIndex <TOTAL_COLUMNS; colIndex++) {
+                if (canFillTile(rowIndex,colIndex, tile)) {
+                    return new TableCoordinates(rowIndex,colIndex);
+                }
+            }
+        }
+
+        return null;
     }
 }

@@ -33,11 +33,11 @@ import com.ishido.model.TileTree;
 import org.problets.helloworld.R;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Queue;
+import java.util.Stack;
+import java.util.Vector;
 
 /**
  * This class holds the view of the Ishido game. It allows the user to place the tiles on the board, computes the score and tiles.
@@ -53,22 +53,27 @@ public class BoardActivity extends Activity implements Cloneable{
 	private Deck deck = new Deck();
 	//private TileInfo clickedTile = new TileInfo();
 	private Player player = new Player();
-	private Queue<Integer> stockQueue = new LinkedList<Integer>();
+	private LinkedList<Integer> stockQueue = new LinkedList<Integer>();
 	// private SearchModel searchModel;
 	private FileAccess fileAccess;
 	private TextView currentBox = null;
 	private Animation anim;
 	private int searchType;
 
-	private Map locationsForTile = new HashMap();
-
 	private TileInfo currentTile = new TileInfo();
 
 	// Queue for the BFS
-	Queue<TileTree> bfsTree = new LinkedList<TileTree>();
+	Queue<TileTree> searchTree = new LinkedList<TileTree>();
 	private boolean needNewTile = true;
 	TableCoordinates startingLocation = new TableCoordinates(0,0);
 	TileTree previousInQueue = new TileTree();
+
+	// For DFS
+	Vector<TileTree> visitedTiles = new Vector<TileTree>();
+	Stack<TileTree> dfsStack = new Stack<TileTree>();
+	private TileTree poppedTileTree = null;
+
+
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -227,6 +232,8 @@ public class BoardActivity extends Activity implements Cloneable{
 		}
 
 		searchType = selectedIndex;
+		needNewTile = true;
+
 		//searchModel.setSearchType(selectedIndex);
 		nextButton.setEnabled(true);
 		nextButton.setClickable(true);
@@ -253,7 +260,7 @@ public class BoardActivity extends Activity implements Cloneable{
 	 */
 	public void initiateGame(View view) {
 		if (stockQueue.isEmpty()) {
-			Toast.makeText(getApplicationContext(),"All of the tiles done!" , Toast.LENGTH_SHORT).show();
+			Toast.makeText(getApplicationContext(),"The game is over!" , Toast.LENGTH_SHORT).show();
 			return;
 		}
 		if (searchType == DFS) {
@@ -269,18 +276,21 @@ public class BoardActivity extends Activity implements Cloneable{
 		// This is when we first take the tile from the queue
 		if (needNewTile) {
 			// First get the new tile from the stock
-			if (!stockQueue.isEmpty()) {
-				int tileInteger = stockQueue.remove();
-				currentTile = Board.calculateTile(tileInteger);
+			//if (!stockQueue.isEmpty()) {
+			int tileInteger = stockQueue.remove();
+			currentTile = Board.calculateTile(tileInteger);
 
-				needNewTile = false;
-			}
+			needNewTile = false;
+			//}
 		}
 
 		// Since we need to set a new tile once previous tile is done, check it with startingCoordinates
 		if (startingLocation.getRow() == -1 ){
 			// At this point, we need to access the queue for first element (remove from queue)
-			TileTree firstElement = bfsTree.remove();
+			TileTree firstElement = searchTree.remove();
+			// The removed tile should be fixed to the given position
+			TableCoordinates elementCoord = firstElement.getCoordinates();
+			TileInfo elementInfo = firstElement.getTile();
 
 			refreshSearchTable();
 
@@ -293,6 +303,14 @@ public class BoardActivity extends Activity implements Cloneable{
 					board.fillTile(master.getCoordinates().getRow(), master.getCoordinates().getColumn(), master.getTile());
 					deck.recordTile(master.getTile().getNumericColorVal(), master.getTile().getNumericSymbolVal());
 
+					// Compute the players score for the tiles that are going to be consistent through out the whole period
+					player.addScore((board.calculateScore(master.getCoordinates().getRow(), master.getCoordinates().getColumn(), master.getTile())));
+
+					// Prints and updates the player score
+					TextView playerScore = (TextView) findViewById(R.id.playerScore);
+					playerScore.setText("" + player.getScore());
+					//System.out.println("The total score player has right now is "+player.getScore());
+
 					TextView tempView  = findViewInTable(new TableCoordinates(master.getCoordinates().getRow(),master.getCoordinates().getColumn()));
 					tempView.setText(master.getTile().getSymbol());
 					tempView.setBackgroundColor(master.getTile().getColor());
@@ -301,18 +319,17 @@ public class BoardActivity extends Activity implements Cloneable{
 				}
 			}
 
-			// The removed tile should be fixed to the given position
-			TableCoordinates elementCoord = firstElement.getCoordinates();
-			TileInfo elementInfo = firstElement.getTile();
+			board.fillTile(elementCoord.getRow(), elementCoord.getColumn(), elementInfo);
+			deck.recordTile(elementInfo.getNumericColorVal(), elementInfo.getNumericSymbolVal());
 
-			if (board.canFillTile(elementCoord.getRow(),elementCoord.getColumn(),elementInfo)) {
-				board.fillTile(elementCoord.getRow(), elementCoord.getColumn(), elementInfo);
-				deck.recordTile(elementInfo.getNumericColorVal(), elementInfo.getNumericSymbolVal());
-			}
-			else {
-				//System.out.println("Cannot fill in "+elementCoord.getRow()+" " + elementCoord.getColumn()+" since it is already taken");
-				return;
-			}
+
+			// Compute the players score for the tiles that are going to be consistent through out the whole period
+			player.addScore((board.calculateScore(elementCoord.getRow(), elementCoord.getColumn(), elementInfo)));
+
+			// Prints and updates the player score
+			TextView playerScore = (TextView) findViewById(R.id.playerScore);
+			playerScore.setText("" + player.getScore());
+			//System.out.println("The total score player has right now is " + player.getScore());
 
 			// draw
 			TextView box = findViewInTable(new TableCoordinates(elementCoord.getRow(),elementCoord.getColumn()));
@@ -327,7 +344,6 @@ public class BoardActivity extends Activity implements Cloneable{
 				else {
 					// we need a new tile to play with
 					needNewTile = true;
-
 				}
 			}
 			else needNewTile = true;
@@ -343,6 +359,7 @@ public class BoardActivity extends Activity implements Cloneable{
 
 					needNewTile = false;
 				}
+
 			}
 
 			// Then startingLocations should be set from beginning for the new tile
@@ -361,7 +378,17 @@ public class BoardActivity extends Activity implements Cloneable{
 					TileTree tileTree = new TileTree(currentTile,previousInQueue, new TableCoordinates(row,col));
 
 					// Push it into the queue
-					bfsTree.add(tileTree);
+					searchTree.add(tileTree);
+
+					// Generates and adds the score of the player
+					player.addScore(board.calculateScore(row, col, currentTile));
+
+					// Prints and updates the player score
+					TextView playerScore = (TextView) findViewById(R.id.playerScore);
+					playerScore.setText("" + player.getScore());
+
+					// Remove the score again since we just need it for display
+					player.removeScore(board.calculateScore(row, col, currentTile));
 
 					// Make sure same cell in the table is not visited next
 					if (col <11) {
@@ -377,14 +404,10 @@ public class BoardActivity extends Activity implements Cloneable{
 						startingLocation.setColumn(-1);
 					}
 
-					System.out.println("So, the starting location for next tile search is " + startingLocation.getRow() +" " + startingLocation.getColumn());
 					// Now draw that tile on the table
 					drawTile(row,col,currentTile);
 
 					return;
-				}
-				else {
-					System.out.println("Not true for coordinates: " + row + "  " + col);
 				}
 
 			}
@@ -419,12 +442,127 @@ public class BoardActivity extends Activity implements Cloneable{
 			currentBox.startAnimation(anim);
 
 		}
-		//System.out.println("Always");
-
 	}
 	/**
 	 * Performs the whole Depth First Search
 	 */
+
+	public void performDFS() {
+		boolean firstTimer = false;
+		if (needNewTile ) {
+			// First get the new tile from the stock
+			int tileInteger = stockQueue.remove();
+			currentTile = Board.calculateTile(tileInteger);
+
+			firstTimer = true;
+
+			needNewTile = false;
+		}
+
+		if (!dfsStack.isEmpty() || firstTimer) {
+			// If first timer, just push it to the stack and be done!
+
+			TableCoordinates availableLocation = board.findNextAvailableLocation(0, 0, currentTile);
+			// Since this is the first tile, it is never going to be NULL
+			if (availableLocation != null) {
+				TileTree newTileTree = new TileTree(currentTile, null, availableLocation);
+
+				while (visitedTiles.contains(newTileTree)) {
+					int row = newTileTree.getCoordinates().getRow();
+					int col = newTileTree.getCoordinates().getColumn();
+					if (col <11) {
+						col++;
+					}
+					else if (row <7){
+						row++;
+					}
+					else {
+						poppedTileTree = dfsStack.pop();
+						TableCoordinates poppedCoordinates = poppedTileTree.getCoordinates();
+
+						// Put back the current tile we have back to the stock queue (at the front)
+						stockQueue.addFirst(deck.getNumericTileVal(currentTile));
+
+						// Set the current tile to be the popped one since we have to work on that first
+						currentTile = poppedTileTree.getTile();
+
+						board.removeTile(poppedCoordinates.getRow(), poppedCoordinates.getColumn());
+						deck.removeFromDeck(poppedTileTree.getTile().getNumericColorVal(), poppedTileTree.getTile().getNumericSymbolVal());
+
+						TextView box = findViewInTable(availableLocation);
+						if (box != null) {
+							box.setText("");
+							box.setBackgroundColor(DEFAULT_COLOR);
+						}
+						break;
+					}
+					availableLocation = board.findNextAvailableLocation(row, col, currentTile);
+					newTileTree = new TileTree(currentTile,null,availableLocation);
+				}
+
+				// Push it to the stack of DFS
+				dfsStack.push(newTileTree);
+				visitedTiles.add(newTileTree);
+
+				// Put it in the board
+				board.fillTile(availableLocation.getRow(), availableLocation.getColumn(), currentTile);
+				deck.recordTile(currentTile.getNumericColorVal(), currentTile.getNumericSymbolVal());
+
+				// print it in the board
+				// Draw the table accordingly
+				TextView box = findViewInTable(availableLocation);
+				if (box != null) {
+					box.setText(currentTile.getSymbol());
+					box.setBackgroundColor(currentTile.getColor());
+
+					if (currentBox != null) {
+						currentBox.clearAnimation();
+					}
+					currentBox = box;
+					currentBox.startAnimation(anim);
+				}
+
+				// Get a new tile after we are done placing this tile for next run
+				if (!stockQueue.isEmpty()) {
+					int tileInteger = stockQueue.remove();
+					currentTile = Board.calculateTile(tileInteger);
+				} else {
+					System.out.println("Game is done since all the tiles are placed");
+				}
+
+				return;
+
+
+			}
+			else {
+				// Here, we have a tile but no location to put it. So, backtrack.
+				// Pop the last one from the stack and remove it from board and screen
+				poppedTileTree = dfsStack.pop();
+				TableCoordinates poppedCoordinates = poppedTileTree.getCoordinates();
+
+				// Put back the current tile we have back to the stock queue (at the front)
+				stockQueue.addFirst(deck.getNumericTileVal(currentTile));
+
+				// Set the current tile to be the popped one since we have to work on that first
+				currentTile = poppedTileTree.getTile();
+
+				board.removeTile(poppedCoordinates.getRow(), poppedCoordinates.getColumn());
+				deck.removeFromDeck(poppedTileTree.getTile().getNumericColorVal(), poppedTileTree.getTile().getNumericSymbolVal());
+
+				TextView box = findViewInTable(availableLocation);
+				if (box != null) {
+					box.setText("");
+					box.setBackgroundColor(DEFAULT_COLOR);
+				}
+			}
+
+
+		}
+
+	}
+
+
+	/*
 	private void performDFS() {
 		int tileInteger = stockQueue.remove();
 
@@ -438,6 +576,16 @@ public class BoardActivity extends Activity implements Cloneable{
 				if (board.canFillTile(row, col, tile)) {
 					board.fillTile(row,col,tile);
 					deck.recordTile(tile.getNumericColorVal(),tile.getNumericSymbolVal());
+
+					// Generates and adds the score of the player
+					player.addScore(board.calculateScore(row, col, tile));
+
+					// Prints and updates the player score
+					TextView playerScore = (TextView) findViewById(R.id.playerScore);
+					playerScore.setText("" + player.getScore());
+
+
+					// Draw the table accordingly
 					TextView box = findViewInTable(new TableCoordinates(row,col));
 					if (box != null) {
 						box.setText(tile.getSymbol());
@@ -447,22 +595,13 @@ public class BoardActivity extends Activity implements Cloneable{
 							currentBox.clearAnimation();
 						}
 						currentBox = box;
-						// Generates and adds the score of the player
-						player.addScore(board.calculateScore(row, col, tile));
-
-						// Prints and updates the player score
-						TextView playerScore = (TextView) findViewById(R.id.playerScore);
-						playerScore.setText("" + player.getScore());
-
-
 						currentBox.startAnimation(anim);
-
 					}
 					return;
 				}
 			}
 		}
-	}
+	}*/
 
 	private TextView findViewInTable(TableCoordinates inputCoordinates) {
 		TableLayout tableLayout = (TableLayout) findViewById(R.id.givenGrid);

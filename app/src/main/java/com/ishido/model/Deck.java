@@ -112,8 +112,12 @@ public class Deck implements Cloneable{
         return ROW_COLUMN_NUMBER;
     }
 
-    public Object clone() throws CloneNotSupportedException {
-        Deck cloning = (Deck)super.clone();
-        return cloning;
+    public int getNumericTileVal(TileInfo tile ) {
+        int total = 0;
+
+        total += (tile.getNumericColorVal()+1) *10;
+        total += (tile.getNumericSymbolVal()+1);
+
+        return total;
     }
 }

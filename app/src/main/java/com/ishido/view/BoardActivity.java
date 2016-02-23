@@ -82,7 +82,7 @@ public class BoardActivity extends Activity implements Cloneable {
     // Queue for the BFS
     Queue<TileTree> searchTree = new LinkedList<TileTree>();
     private boolean needNewTile = true;
-    TableCoordinates startingLocation = new TableCoordinates(0, 0);
+
     TileTree previousTileTree = new TileTree();
 
     // For DFS
@@ -311,6 +311,13 @@ public class BoardActivity extends Activity implements Cloneable {
             refreshSearchTable();
             setTheStock(fileAccess.getStock());
         }
+
+        // Clear everything for the first time use
+        searchTree.clear();
+        searchStack.clear();
+        sortedSearchArray.clear();
+        visitedBestFirst.clear();
+        visitedTiles.clear();
 
         // Sets the search type as selected by the user
         searchType = selectedIndex;
@@ -745,315 +752,102 @@ public class BoardActivity extends Activity implements Cloneable {
         needNewTile = false;
 
     }
-    /*
 
-    public void performBestFS() {
-        // Handles the first tile
-        if (needNewTile) {
-            int tileInteger = stockQueue.remove();
-            currentTile = Board.calculateTile(tileInteger);
-
-            needNewTile = false;
-        }
-
-        // First remove from scoreSortedArray since we are going to deal with completely new tile
-        scoreSortedArray.clear();
-
-        // Initialize the scoreSortedArray and make it ready for new run
-        for (int index = 0; index < 5; ++index) {
-            scoreSortedArray.add(new Stack<TileTree>());
-        }
-
-        // Sets the back tracking to false
-        goBacktrack = false;
-
-        // This is to go through all the available locations from the beginning
-        // Only needed when we need to calculate locations for the new tile
-        for (int rowIndex = 0; rowIndex < board.TOTAL_ROWS; rowIndex++) {
-            for (int colIndex = 0; colIndex < board.TOTAL_COLUMNS; colIndex++) {
-                if (board.canFillTile(rowIndex, colIndex, currentTile)) {
-                    // Gets the score and puts it in the arraylist according to its score
-                    int score = board.calculateScore(rowIndex, colIndex, currentTile);
-                    TableCoordinates currentCoordinates = new TableCoordinates(rowIndex, colIndex);
-                    scoreSortedArray.get(score).push(new TileTree(currentTile, currentCoordinates, 0, null));
-                }
-            }
-        }
-
-        // If the locations are available, then add then to open list. OR take another tile from the open list
-        for (int tempIndex = 0; tempIndex < 5; ++tempIndex) {
-            if (!scoreSortedArray.get(tempIndex).isEmpty()) {
-                goBacktrack = false;
-                break;
-            }
-
-            // At this point, we are sure that we could not find any new location for the new tile
-            if (tempIndex == 4) {
-                int tileInt = deck.getNumericTileVal(currentTile);
-                stockQueue.addFirst(tileInt);
-
-                // Pop out from the path since that path don't give us optimal end state
-                TileTree tempTree = path.pop();
-                TableCoordinates tempTableCoord = tempTree.getCoordinates();
-
-                currentTile = tempTree.getTile();
-
-                // Clear the values from display screen and board
-                board.removeTile(tempTableCoord.getRow(), tempTableCoord.getColumn());
-                deck.removeFromDeck(tempTree.getTile().getNumericColorVal(), tempTree.getTile().getNumericSymbolVal());
-
-                TextView box = findViewInTable(tempTableCoord);
-                box.setText("");
-                box.setBackgroundColor(DEFAULT_COLOR);
-                box.clearAnimation();
-
-                player.removeScore(board.calculateScore(tempTableCoord.getRow(), tempTableCoord.getColumn(), tempTree.getTile()));
-                playerView.setText("" + player.getScore());
-
-                goBacktrack = true;
-            }
-        }
-
-        // Now push the newly generated tile from scoreSorted Array to the main Stack (open list). This will be put in score-sorted format directly
-        if (!goBacktrack) {
-            for (int scoreIndex = 0; scoreIndex < 5; ++scoreIndex) {
-                //put the tiles from stack until the stack at this index is empty
-                while (!scoreSortedArray.get(scoreIndex).isEmpty()) {
-                    openTileTrees.push(scoreSortedArray.get(scoreIndex).pop());
-                }
-            }
-
-        }
-
-        // Push the best node from openTileTrees to the actual PATH and print it on the board
-        TileTree tempTileTree = openTileTrees.pop();
-        TableCoordinates tempCoordinates = tempTileTree.getCoordinates();
-
-        // The tiles can be different at this time. If it is, the pop again from the path and store previous one
-        if (goBacktrack && tempTileTree.getTile() != path.peek().getTile()) {
-            // Pop from the path again
-            TileTree poppedTileTree = path.pop();
-            TableCoordinates tempTableCoord = poppedTileTree.getCoordinates();
-
-            int tileInt = deck.getNumericTileVal(currentTile);
-            stockQueue.addFirst(tileInt);
-
-            // Clear the values from display screen and board
-            board.removeTile(tempTableCoord.getRow(), tempTableCoord.getColumn());
-            deck.removeFromDeck(poppedTileTree.getTile().getNumericColorVal(), poppedTileTree.getTile().getNumericSymbolVal());
-
-            TextView box = findViewInTable(tempTableCoord);
-            box.setText("");
-            box.setBackgroundColor(DEFAULT_COLOR);
-            box.clearAnimation();
-
-
-        }
-        path.push(tempTileTree);
-
-        // Fill it into the board and deck of the model
-        board.fillTile(tempCoordinates.getRow(), tempCoordinates.getColumn(), tempTileTree.getTile());
-        deck.recordTile(tempTileTree.getTile().getNumericColorVal(), tempTileTree.getTile().getNumericSymbolVal());
-
-        // Get the score
-        player.addScore(board.calculateScore(tempCoordinates.getRow(), tempCoordinates.getColumn(), tempTileTree.getTile()));
-
-        TextView box = (TextView) findViewInTable(tempTileTree.getCoordinates());
-        box.setText(tempTileTree.getTile().getSymbol());
-        box.setBackgroundColor(tempTileTree.getTile().getColor());
-        box.startAnimation(anim);
-//        if (currentBox != null) {
-//            currentBox.clearAnimation();
-//
-//        }
-//        currentBox = box;
-//
-//        currentBox.startAnimation(anim);
-
-        // Prints and updates the player score
-        playerView.setText("" + player.getScore());
-
-
-        // Get the next tile from the stock and put it in the currentTile
-        if (!stockQueue.isEmpty()) {
-            int tileInteger = stockQueue.remove();
-            currentTile = Board.calculateTile(tileInteger);
-        }
-    }
-*/
     /**
      * This will perform Breadth First Search
      */
     public void performBFS() {
-        // This is when we first take the tile from the queue
+        // If the board is already done, the just return that the game is over
+        if (board.isDone(deck)) {
+            Toast.makeText(getApplicationContext(),"The game is over",Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // refresh the search table and the stock
+        refreshSearchTable();
+        int stockIndex = 0;
+
+        // If this is the first time, then get the new tile
         if (needNewTile) {
             // First get the new tile from the stock
-            int tileInteger = stockQueue.remove();
+            int tileInteger = stockQueue.get(stockIndex);
             currentTile = Board.calculateTile(tileInteger);
 
-            needNewTile = false;
+            Toast.makeText(getApplicationContext(),"Setting up best first search...",Toast.LENGTH_SHORT).show();
+
+            // Declare previous tile as null
+            previousTileTree = null;
         }
 
-        // Since we need to set a new tile once previous tile is done, check it with startingCoordinates
-        if (startingLocation.getRow() == -1) {
-            // At this point, we need to access the queue for first element (remove from queue)
-            TileTree firstElement = searchTree.remove();
-            // The removed tile should be fixed to the given position
-            TableCoordinates elementCoord = firstElement.getCoordinates();
-            TileInfo elementInfo = firstElement.getTile();
+        // If it is not the first time, then go to the stack and pop out the last element
+        if (!needNewTile && !searchTree.isEmpty()) {
+            // Initialize previousTileTree as the the one popped from the stack
+            previousTileTree = searchTree.remove();
 
-            refreshSearchTable();
+            // Loop through hierarchical parent of the previous tile and put it in the board
+            TileTree temptree = previousTileTree;
+            while(temptree != null) {
+                TableCoordinates tempCoord = temptree.getCoordinates();
 
-            // Check if the existing number has masters. IF yes, then it means print the masters before printing this tile
-            if (!firstElement.getMasterTileTree().isEmpty()) {
-                // Print all of the masters. Then print the new one
-                TileTree master = firstElement.getMasterTileTree();
-                while (!master.isEmpty()) {
-                    // If master is not empty, print the master first and then go through printing the childs
-                    board.fillTile(master.getCoordinates().getRow(), master.getCoordinates().getColumn(), master.getTile());
-                    deck.recordTile(master.getTile().getNumericColorVal(), master.getTile().getNumericSymbolVal());
+                // Increase the index of stock everytime
+                stockIndex++;
 
-                    // Compute the players score for the tiles that are going to be consistent through out the whole period
-                    player.addScore((board.calculateScore(master.getCoordinates().getRow(), master.getCoordinates().getColumn(), master.getTile())));
+                // Fill it in the board
+                board.fillTile(tempCoord.getRow(), tempCoord.getColumn(), temptree.getTile());
+                deck.recordTile(temptree.getTile().getNumericColorVal(), temptree.getTile().getNumericSymbolVal());
 
-                    // Prints and updates the player score
-                    TextView playerScore = (TextView) findViewById(R.id.playerScore);
-                    playerScore.setText("" + player.getScore());
+                TextView box = (TextView) findViewInTable(tempCoord);
+                box.setText("" + temptree.getTile().getSymbol());
+                box.setBackgroundColor(temptree.getTile().getColor());
 
-                    // Displays it in the board
-                    TextView tempView = findViewInTable(new TableCoordinates(master.getCoordinates().getRow(), master.getCoordinates().getColumn()));
-                    tempView.setText(master.getTile().getSymbol());
-                    tempView.setBackgroundColor(master.getTile().getColor());
-                    tempView.startAnimation(anim);
+                //if (stockIndex == 1) {
+                box.startAnimation(anim);
+                //}
 
-                    master = master.getMasterTileTree();
-                }
+                temptree = temptree.getMasterTileTree();
             }
 
-            board.fillTile(elementCoord.getRow(), elementCoord.getColumn(), elementInfo);
-            deck.recordTile(elementInfo.getNumericColorVal(), elementInfo.getNumericSymbolVal());
+            playerView = (TextView) findViewById(R.id.playerScore);
+            playerView.setText(previousTileTree.getTotalScore()+"");
 
-            // Compute the players score for the tiles that are going to be consistent through out the whole period
-            player.addScore((board.calculateScore(elementCoord.getRow(), elementCoord.getColumn(), elementInfo)));
-
-            // Prints and updates the player score
-            TextView playerScore = (TextView) findViewById(R.id.playerScore);
-            playerScore.setText("" + player.getScore());
-
-            // draw it in the board
-            TextView box = findViewInTable(new TableCoordinates(elementCoord.getRow(), elementCoord.getColumn()));
-            box.setText(elementInfo.getSymbol());
-            box.setBackgroundColor(elementInfo.getColor());
-            box.startAnimation(anim);
-
-            // Check if the current tile we traversed is same as the one removed from the queue. If yes, then generate new tile. Else, stick with currentTile
-            if (!previousTileTree.isEmpty()) {
-                if (previousTileTree.getTile() == elementInfo) {
-                    needNewTile = false;
-                } else {
-                    // we need a new tile to play with
-                    needNewTile = true;
-                }
-            } else needNewTile = true;
-
-            // Saves the newly removed tile from the queue for parenting hierarchy with new nodes
-            previousTileTree = firstElement;
-
-            // Check if we need a new element is needed
-            if (needNewTile) {
-                if (!stockQueue.isEmpty()) {
-                    int tileInteger = stockQueue.remove();
-                    currentTile = Board.calculateTile(tileInteger);
-
-                    needNewTile = false;
-                }
-
+            // Checks the stockIndex with the size of stock. If
+            if (stockIndex<stockQueue.size()) {
+                int tileInteger = stockQueue.get(stockIndex);
+                currentTile = Board.calculateTile(tileInteger);
             }
-
-            // Then startingLocations should be set from beginning for the new tile
-            startingLocation.setColumn(0);
-            startingLocation.setRow(0);
+            else {
+                Toast.makeText(getApplicationContext(),"GAME OVER!",Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
+        else if (!needNewTile && searchStack.isEmpty()) {
+            Toast.makeText(getApplicationContext(),"GAME OVER", Toast.LENGTH_SHORT).show();
+            return;
         }
 
+        // Perform location search
+        for (int rowIndex=0; rowIndex<board.TOTAL_ROWS; rowIndex++) {
+            for (int colIndex=0; colIndex < board.TOTAL_COLUMNS; colIndex++) {
+                if (board.canFillTile(rowIndex,colIndex,currentTile)) {
+                    TableCoordinates tempCoord = new TableCoordinates(rowIndex,colIndex);
+                    int totalScore=0;
 
-        // Then find the available coordinates for each. Once found, put it in the queue as a TileTree object
-        for (int row = startingLocation.getRow(); row < Board.TOTAL_ROWS; ++row) {
-            for (int col = startingLocation.getColumn(); col < Board.TOTAL_COLUMNS; ++col) {
-                if (board.canFillTile(row, col, currentTile)) {
-                    // Create a new TileTree with that tile and coordinates and point its previous tile to the previous tiletree
-
-                    TileTree tileTree = new TileTree(currentTile, new TableCoordinates(row, col), 0, previousTileTree);
-
-                    // Push it into the queue
-                    searchTree.add(tileTree);
-
-                    // Generates and adds the score of the player
-                    player.addScore(board.calculateScore(row, col, currentTile));
-
-                    // Prints and updates the player score
-                    playerView.setText("" + player.getScore());
-
-                    // Remove the score again since we just need it for display
-                    player.removeScore(board.calculateScore(row, col, currentTile));
-
-                    // Make sure same cell in the table is not visited next
-                    if (col < 11) {
-                        startingLocation.setColumn(col + 1);
-                        startingLocation.setRow(row);
-                    } else if (row < 7) {
-                        startingLocation.setRow(row + 1);
-                        startingLocation.setColumn(0);
+                    // Checks if previous tile tree is null. If not, then adds the total score for this tile tree from the one from previous tile
+                    if (previousTileTree != null) {
+                        totalScore = previousTileTree.getTotalScore() + board.calculateScore(rowIndex, colIndex, currentTile);
                     } else {
-                        startingLocation.setRow(-1);
-                        startingLocation.setColumn(-1);
+                        totalScore = player.getScore() + board.calculateScore(rowIndex, colIndex, currentTile);
                     }
+                    TileTree tempTree = new TileTree(currentTile, tempCoord, totalScore, previousTileTree );
 
-                    // Now draw that tile on the table
-                    drawTile(row, col, currentTile);
-
-                    return;
+                    // If the tile is not in the visited tile, then save it to stack
+                    searchTree.add(tempTree);
                 }
-
             }
-            // The column needs to be resetted every single time we reach the end of the solution
-            startingLocation.setColumn(0);
         }
 
-        // At this point, it is certain that none of the tiles are available.
-        // So, set startingLocation to -1
-        startingLocation.setRow(-1);
-        startingLocation.setColumn(-1);
-
+        needNewTile = false;
     }
-
-    /**
-     * Draws the given tile on the baord
-     *
-     * @param row      It is the row number in the board
-     * @param col      It is the column number in the board
-     * @param tileInfo It is the information of the tile
-     */
-    private void drawTile(int row, int col, TileInfo tileInfo) {
-        // Finds the view in the table of the cell and then changes its properties according to choice
-        TextView box = findViewInTable(new TableCoordinates(row, col));
-        if (box != null) {
-            box.setText(tileInfo.getSymbol());
-            box.setBackgroundColor(tileInfo.getColor());
-            box.startAnimation(anim);
-            if (currentBox != null) {
-                currentBox.clearAnimation();
-
-                // If we are dealing with the same tile, then remove all the functions from the currentBox to default
-                currentBox.setText("");
-                currentBox.setBackgroundColor(DEFAULT_COLOR);
-            }
-            currentBox = box;
-
-            currentBox.startAnimation(anim);
-
-        }
-    }
-
 
 
     /**

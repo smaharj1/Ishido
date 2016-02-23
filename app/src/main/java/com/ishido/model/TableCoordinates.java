@@ -10,6 +10,7 @@ package com.ishido.model;
  * It holds the coordinates of the cell that the user pressed
  */
 public class TableCoordinates {
+    // Initializes the row and column for the class
     private int row;
     private int column;
 
@@ -37,10 +38,18 @@ public class TableCoordinates {
         return column;
     }
 
+    /**
+     * Sets the row of the TableCoordinates
+     * @param r It consists of the row number
+     */
     public void setRow(int r) {
         row = r;
     }
 
+    /**
+     * Sets the column of the table coordinates
+     * @param col It consists of the column number of the coordinates
+     */
     public void setColumn(int col) {
         column = col;
     }

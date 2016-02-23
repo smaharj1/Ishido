@@ -37,6 +37,10 @@ public class Player {
         return score;
     }
 
+    /**
+     * Removes the score from the total score
+     * @param value It consists of the value that should be removed from the total
+     */
     public void removeScore(int value) {
         score -= value;
     }

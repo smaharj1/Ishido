@@ -287,16 +287,25 @@ public class Board implements Cloneable{
         return false;
     }
 
-    // boardInfo will have eight rows of string with 12 columns in each row
+    /**
+     * Fills the board with the data received from the string array. String array can be gotten from FileAccess.
+     * @param boardInfo Consists of string array of data
+     * @param deck Consists of the deck of the current game
+     */
     public void fillBoard(String[] boardInfo, Deck deck ) {
+        // Loop through each row
         for (int rowIndex = 0; rowIndex<TOTAL_ROWS; ++rowIndex) {
             String temp = boardInfo[rowIndex];
 
+            // Split the row of the boardInfo with space bar and divide it into values
             String[] values = temp.split(" ");
 
+            //Loop thorugh the columns of the board and put the values if it exists
             for (int columnIndex=0; columnIndex < TOTAL_COLUMNS; columnIndex++) {
+                // Converts it into the numeric value
                 int numericValue = Integer.parseInt(values[columnIndex]);
 
+                // If there exists the value, put it in the board
                 if (numericValue != 0) {
                     TileInfo tile = calculateTile(numericValue);
 
@@ -305,12 +314,16 @@ public class Board implements Cloneable{
                 }
                 else {
                     TileInfo tile = null;
-
                 }
             }
         }
     }
 
+    /**
+     * Calculates the TileInfo from the given integer equivalent of the tile
+     * @param tileValue Numeric representation of the tile
+     * @return Returns the TileINfo object of the given numeric equivalent
+     */
     public static TileInfo calculateTile(int tileValue) {
         int colorVal = (tileValue/10)-1;
         int symbolVal = (tileValue%10)-1;
@@ -322,7 +335,13 @@ public class Board implements Cloneable{
         return tile;
     }
 
-    // Finds the next available location starting the search from the given row and column
+    /**
+     * Finds the next available location starting the search from the given row and column
+     * @param row It is the row number
+     * @param col It is the column number
+     * @param tile It is the tile
+     * @return Returns the coordinates that is available. NULL if not available
+     */
     public TableCoordinates findNextAvailableLocation(int row, int col, TileInfo tile) {
         for (int rowIndex = row; rowIndex<TOTAL_ROWS; rowIndex++) {
             for (int colIndex = col; colIndex <TOTAL_COLUMNS; colIndex++) {

@@ -16,6 +16,9 @@ import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TableLayout;
 import android.widget.TableRow;
@@ -44,31 +47,41 @@ import java.util.Vector;
  */
 
 public class BoardActivity extends Activity implements Cloneable{
+	// Holds the constants of search types and color
 	private final String MESSAGE="score";
 	private final int DEFAULT_COLOR = Color.parseColor("#FCEBB6");
 	public static final int DFS= 0;
 	public static final int BFS = 1;
 	public static final int BEST_FS = 2;
+	public static final int BRANCH_AND_BOUND = 3;
 
+	// Initializes the board, deck, player objects
 	private Board board = new Board();
 	private Deck deck = new Deck();
-	//private TileInfo clickedTile = new TileInfo();
 	private Player player = new Player();
+
+	// View of the Player
 	private TextView playerView;
+
+	// Consists the stock of tiles got from the file
 	private LinkedList<Integer> stockQueue = new LinkedList<Integer>();
-	// private SearchModel searchModel;
+
+	// FileAccess and animation declarations
 	private FileAccess fileAccess;
 	private TextView currentBox = null;
 	private Animation anim;
+
+	// Declares the searchType
 	private int searchType;
 
+	// Holds the value of the working tile
 	private TileInfo currentTile = new TileInfo();
 
 	// Queue for the BFS
 	Queue<TileTree> searchTree = new LinkedList<TileTree>();
 	private boolean needNewTile = true;
 	TableCoordinates startingLocation = new TableCoordinates(0,0);
-	TileTree previousInQueue = new TileTree();
+	TileTree previousTileTree = new TileTree();
 
 	// For DFS
 	Vector<TileTree> visitedTiles = new Vector<TileTree>();
@@ -81,6 +94,11 @@ public class BoardActivity extends Activity implements Cloneable{
 	Stack<TileTree> openTileTrees = new Stack<TileTree>();
 	private boolean goBacktrack = false;
 
+	// Primarily sets values for branch and bound search
+	private int totalBranch = 0;
+	Stack<TileTree> goalStack = new Stack<TileTree>();
+	TileTree goalNode;
+
 
 
 	@Override
@@ -88,6 +106,7 @@ public class BoardActivity extends Activity implements Cloneable{
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_board);
 
+		// Initializes the file access according to this context
 		fileAccess = new FileAccess(getApplicationContext());
 
 		// Reads the given file and stores the strings of board data, stock and score
@@ -95,6 +114,7 @@ public class BoardActivity extends Activity implements Cloneable{
 
 		// Fills the board initially with the data retrieved from the file
 		board.fillBoard(fileAccess.getBoardData(), deck);
+		// Makes the table
 		makeTable();
 
 		// Updates the score in Player and also presents the score in the screen
@@ -102,10 +122,7 @@ public class BoardActivity extends Activity implements Cloneable{
 		TextView score = (TextView) findViewById(R.id.playerScore);
 		score.setText("" + player.getScore());
 
-		// Initiates the searchModel after populating the board and deck for the first time
-		//searchModel = new SearchModel(board, deck);
-
-		//searchModel.setStockQueue(fileAccess.getStock());
+		// Sets the stcok primarily
 		setTheStock(fileAccess.getStock());
 
 		// Fill in the initial spinner for search options choice
@@ -113,6 +130,7 @@ public class BoardActivity extends Activity implements Cloneable{
 		choices.add("Depth First Search");
 		choices.add("Breadth First Search");
 		choices.add("Best Fit Search");
+		choices.add("Branch and Bound Search");
 
 		ArrayAdapter<String> adapter = new ArrayAdapter<String>(
 				this, android.R.layout.simple_spinner_item, choices);
@@ -133,6 +151,45 @@ public class BoardActivity extends Activity implements Cloneable{
 
 		// Assing the text view of player
 		playerView = (TextView) findViewById(R.id.playerScore);
+
+		// Displays the row numbers of the board from this table
+		TableLayout table = (TableLayout) findViewById(R.id.rowIndexing);
+
+		// Adds the grid in the android activity
+		// It uses the TableLayout to create the overall table of the board
+		for (int rowIndex = 0; rowIndex < 9; ++rowIndex) {
+			TableRow row = new TableRow(this);
+
+			TableRow.LayoutParams params = new TableRow.LayoutParams(TableRow.LayoutParams.WRAP_CONTENT, TableRow.LayoutParams.WRAP_CONTENT);
+			params.setMargins(4, 4, 4, 4);
+
+			TextView rowView = new TextView(this);
+			rowView.setText(rowIndex + "");
+			rowView.setWidth(50);
+			rowView.setHeight(35);
+			rowView.setGravity(Gravity.CENTER);
+
+			row.addView(rowView,params);
+			table.addView(row);
+		}
+
+		// Displays the column numbers of the board
+		table = (TableLayout) findViewById(R.id.columnIndexing);
+
+		TableRow row = new TableRow(this);
+		TableRow.LayoutParams params = new TableRow.LayoutParams(TableRow.LayoutParams.WRAP_CONTENT, TableRow.LayoutParams.WRAP_CONTENT);
+		params.setMargins(4, 4, 4, 4);
+
+		for (int col=0; col<12; col++) {
+			TextView colView = new TextView(this);
+			colView.setText(col + 1 + "");
+			colView.setWidth(50);
+			colView.setHeight(35);
+			colView.setGravity(Gravity.CENTER);
+			row.addView(colView, params);
+		}
+		table.addView(row);
+
 
 		/*
 		// Makes a spinner for choosing the color
@@ -177,8 +234,12 @@ public class BoardActivity extends Activity implements Cloneable{
 		return true;
 	}
 
-
+	/**
+	 * Sets the stock
+	 * @param stock The string got from the file that defines the stock
+	 */
 	public void setTheStock(String stock) {
+		// Splits the string with spacebar and then adds it in the queue as integers
 		String[] stockStr = stock.split(" ");
 
 		while (!stockQueue.isEmpty()) {
@@ -189,6 +250,10 @@ public class BoardActivity extends Activity implements Cloneable{
 			stockQueue.add(Integer.parseInt(stockStr[index]));
 		}
 	}
+
+	/**
+	 * Makes the table in the board
+	 */
 	public void makeTable() {
 		// Finds the table that we will be working with
 		TableLayout table = (TableLayout) findViewById(R.id.givenGrid);
@@ -228,6 +293,7 @@ public class BoardActivity extends Activity implements Cloneable{
 			table.addView(row);
 		}
 	}
+
 	/**
 	 * Handles the button press that determines what type of search the user wants to do
 	 * @param view
@@ -237,25 +303,93 @@ public class BoardActivity extends Activity implements Cloneable{
 		Spinner spinner = (Spinner) findViewById(R.id.searchChoice);
 		int selectedIndex = spinner.getSelectedItemPosition();
 
+		// Check if the next button is already enabled. If it is, it means that the app did not open the first time.
+		// So, clear all of the existing values as we are starting a new search
 		Button nextButton = (Button) findViewById(R.id.next);
 		if (nextButton.isEnabled()) {
+			// Refreshes the different components of the app (board, tile, deck)
 			refreshSearchTable();
 			setTheStock(fileAccess.getStock());
 		}
 
+		// Sets the search type as selected by the user
 		searchType = selectedIndex;
+
+		// Sets that we need a new tile (defines the beginning of certain kind of search)
 		needNewTile = true;
 
-		//searchModel.setSearchType(selectedIndex);
+		// Checks if the search type is branch and bound. If YES, then we need additional information from the user. So, don't set the next button as clickable yet.
+		// If NO, set the next button as enabled.
+		if(searchType == BRANCH_AND_BOUND) {
+			// Make the input label visible
+			LinearLayout branchLayout = (LinearLayout) findViewById(R.id.branchLayout);
+			branchLayout.setVisibility(View.VISIBLE);
+
+		}
+		else {
+			nextButton.setEnabled(true);
+			nextButton.setClickable(true);
+		}
+	}
+
+	/**
+	 * Sets the next button to enabled given all the criterias are fulfilled
+	 * @param view It is the view of the app
+	 */
+	public void enableNextForBNB(View view) {
+		// Gets the view of the buttons and values of the branch that user provided
+		Button nextButton = (Button) findViewById(R.id.next);
+		EditText branchValue = (EditText) findViewById(R.id.branchInput);
+		CheckBox searchWholeTree= (CheckBox) findViewById(R.id.wholeTreeSearch);
+
+		// Checks if the user entered the branch value. If YES, then parse it into the integer and initialize stock accordingly.
+		if (!branchValue.getText().toString().isEmpty()) {
+			// Get the total branch entered by the user
+			totalBranch = Integer.parseInt(branchValue.getText().toString());
+
+			// Handle the stockQueue number according to the the given number
+			LinkedList<Integer> tempStock = new LinkedList<Integer>();
+			for (int index = 0; index < totalBranch; ++index) {
+				tempStock.add(stockQueue.remove());
+			}
+
+			stockQueue = tempStock;
+		}
+		else if (searchWholeTree.isChecked()) {
+			// At this point, the stock is kept as it is. Hence, it will search through the whole tree
+			System.out.println("Checkbox marked");
+		}
+		else {
+			// Do nothing. Just return
+			Toast.makeText(getApplicationContext(), "Please select one of the choices", Toast.LENGTH_SHORT).show();
+			return;
+		}
+
+		// If the above condition go through, then, hide the additional options
+		LinearLayout branchLayout = (LinearLayout) findViewById(R.id.branchLayout);
+		branchLayout.setVisibility(View.INVISIBLE);
+
+		// Performs the branch and bound according to the given choices
+		performBranchAndBound();
+
+		// After the branch and bound is performed, then it enables the next button
 		nextButton.setEnabled(true);
 		nextButton.setClickable(true);
 	}
 
+	/**
+	 * It refreshes the search table. So, everytime we start a new search, the table, board, deck, score is cleared and restored
+	 */
 	public void refreshSearchTable() {
+		// Removes from the table view
 		TableLayout table = (TableLayout) findViewById(R.id.givenGrid);
 		table.removeAllViews();
+
+		// Resets the board and deck
 		board = new Board();
 		deck = new Deck();
+
+		// Initializes to the original set
 		board.fillBoard(fileAccess.getBoardData(), deck);
 		makeTable();
 		player = new Player();
@@ -269,11 +403,14 @@ public class BoardActivity extends Activity implements Cloneable{
 	 * @param view
 	 */
 	public void initiateGame(View view) {
-		if (stockQueue.isEmpty()) {
+		if (searchType == BRANCH_AND_BOUND) {
+			getNextBNBVal();
+		}
+		else if (stockQueue.isEmpty()) {
 			Toast.makeText(getApplicationContext(),"The game is over!" , Toast.LENGTH_SHORT).show();
 			return;
 		}
-		if (searchType == DFS) {
+		else if (searchType == DFS) {
 			performDFS();
 		}
 		else if (searchType == BFS) {
@@ -283,10 +420,139 @@ public class BoardActivity extends Activity implements Cloneable{
 			performBestFS();
 		}
 
+
 	}
 
+	/**
+	 * Gets the next value from the goal queue we already generated for Branch and Bound
+	 */
+	public void getNextBNBVal() {
+		// Checks if the goalStack is empty. If YES, it means we are done with the branch and bound. If NO, then, pop the stack and display it to the user
+		if (!goalStack.isEmpty()) {
+			TileTree result = goalStack.pop();
+			TableCoordinates coord = result.getCoordinates();
+			TextView box = (TextView) findViewInTable(coord);
+			box.setText(result.getTile().getSymbol());
+			box.setBackgroundColor(result.getTile().getColor());
+			if (currentBox != null) {
+				currentBox.clearAnimation();
+
+			}
+			currentBox = box;
+
+			currentBox.startAnimation(anim);
+
+			playerView = (TextView) findViewById(R.id.playerScore);
+			playerView.setText(result.getTotalScore()+"");
+		}
+		else {
+			Toast.makeText(getApplicationContext(),"GAME OVER!!!" , Toast.LENGTH_SHORT).show();
+		}
+	}
+
+	/**
+	 * Performs the branch and bound operation and populates the goalNode stack.
+	 * It performs the whole search at a time
+	 */
+	public void performBranchAndBound() {
+		// Initializes the final stage (leaf node stage) as false.
+		boolean finalStage = false;
+
+		// Checks if this is the first time the search has been initiated. If YES, get a new tile from the stock
+		if (needNewTile) {
+			int tileInteger = stockQueue.remove();
+			currentTile = Board.calculateTile(tileInteger);
+
+			// Initializes the goal node as null
+			goalNode = new TileTree(null,null,0,null);
+
+			// Initializes the previous tile as null for the first run
+			previousTileTree = null;
+		}
+
+		// Loop through the stock while it is the new tile or the queue for the tree is not empty
+		while (!searchTree.isEmpty() || needNewTile == true) {
+			// Check if this is a first run. If yes, just set the previous tile as NULL. Else, the current tile option would be previous tile.
+			if (needNewTile == true) {
+				previousTileTree = null;
+			} else {
+				// Remove a tile tree from the queue
+				TileTree tempTree = searchTree.remove();
+
+				// Checks if the new tile and previous tile we dealt were same. If YES, get a new tile to work with. Else, continue with the same tile
+				if (previousTileTree == null || tempTree.getTile() != previousTileTree.getTile()) {
+					if (!stockQueue.isEmpty()) {
+						int tileInteger = stockQueue.remove();
+						currentTile = Board.calculateTile(tileInteger);
+
+						// Check if there is another tile in the stock. If not, specify that this newly generated tile is the final stage and all of the locations available from this are leaf nodes.
+						if (stockQueue.isEmpty()) {
+							finalStage = true;
+						}
+					}
+				}
+
+				// Sets the previous tile as the one popped from the queue
+				previousTileTree = tempTree;
+
+			}
+			// Sets the new tile as false as it won't be first time anymore
+			needNewTile = false;
+
+			// Clear the board and the deck and populate again for previous tiles
+			refreshSearchTable();
+			TileTree preTile = previousTileTree;
+
+			// Loops through the parent tiles of the generated tiletree and fills it in the board
+			while (preTile != null) {
+				board.fillTile(preTile.getCoordinates().getRow(), preTile.getCoordinates().getColumn(), preTile.getTile());
+				deck.recordTile(preTile.getTile().getNumericColorVal(),preTile.getTile().getNumericSymbolVal());
+				preTile = preTile.getMasterTileTree();
+			}
+
+			// Adds the available nodes to the list
+			// Loops through all the board locations and assigns the available tile to TileTree with parent tile noted
+			for (int rowIndex = 0; rowIndex < board.TOTAL_ROWS; rowIndex++) {
+				for (int colIndex = 0; colIndex < board.TOTAL_COLUMNS; colIndex++) {
+					if (board.canFillTile(rowIndex, colIndex, currentTile)) {
+						int totalScore;
+						// Checks if previous tile tree is null. If not, then adds the total score for this tile tree from the one from previous tile
+						if (previousTileTree != null) {
+							totalScore = previousTileTree.getTotalScore() + board.calculateScore(rowIndex, colIndex, currentTile);
+						} else {
+							totalScore = player.getScore() + board.calculateScore(rowIndex, colIndex, currentTile);
+						}
+						TableCoordinates tileCoords = new TableCoordinates(rowIndex, colIndex);
+
+						// Checks if the tile we are working with is in final stage. If NO, then, just add it to the search tree queue
+						if (!finalStage) {
+							searchTree.add(new TileTree(currentTile, tileCoords, totalScore, previousTileTree));
+						} else {
+							// At this point, we are at the leaf node. So, check with the goal node. If the leaf node has higher score than the goal node, then it would now be the goal node
+							TileTree tempTree = new TileTree(currentTile, tileCoords, totalScore, previousTileTree);
+							// Here, we need to check the total score in this location with our goal node. If it is greater, declare this as the goal node
+							if (tempTree.getTotalScore() > goalNode.getTotalScore()) {
+								goalNode = tempTree;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Check if the goal node is null. If NO, then, push it to the goalStack. From this we will get our main answer
+		while (goalNode != null) {
+			goalStack.push(goalNode);
+
+			goalNode = goalNode.getMasterTileTree();
+		}
+	}
+
+	/**
+	 * Performs the best first search
+	 */
 	public void performBestFS() {
-		// First tile handle
+		// Handles the first tile
 		if (needNewTile) {
 			int tileInteger = stockQueue.remove();
 			currentTile = Board.calculateTile(tileInteger);
@@ -302,6 +568,7 @@ public class BoardActivity extends Activity implements Cloneable{
 			scoreSortedArray.add(new Stack<TileTree>());
 		}
 
+		// Sets the back tracking to false
 		goBacktrack = false;
 
 		// This is to go through all the available locations from the beginning
@@ -312,7 +579,7 @@ public class BoardActivity extends Activity implements Cloneable{
 					// Gets the score and puts it in the arraylist according to its score
 					int score = board.calculateScore(rowIndex,colIndex,currentTile);
 					TableCoordinates currentCoordinates = new TableCoordinates(rowIndex,colIndex);
-					scoreSortedArray.get(score).push(new TileTree(currentTile, null, currentCoordinates));
+					scoreSortedArray.get(score).push(new TileTree(currentTile, currentCoordinates, 0, null));
 				}
 			}
 		}
@@ -320,6 +587,7 @@ public class BoardActivity extends Activity implements Cloneable{
 		// If the locations are available, then add then to open list. OR take another tile from the open list
 		for (int tempIndex =0; tempIndex<5; ++tempIndex) {
 			if (!scoreSortedArray.get(tempIndex).isEmpty()) {
+				goBacktrack = false;
 				break;
 			}
 
@@ -332,6 +600,8 @@ public class BoardActivity extends Activity implements Cloneable{
 				TileTree tempTree = path.pop();
 				TableCoordinates tempTableCoord = tempTree.getCoordinates();
 
+				currentTile = tempTree.getTile();
+
 				// Clear the values from display screen and board
 				board.removeTile(tempTableCoord.getRow(), tempTableCoord.getColumn());
 				deck.removeFromDeck(tempTree.getTile().getNumericColorVal(), tempTree.getTile().getNumericSymbolVal());
@@ -339,6 +609,7 @@ public class BoardActivity extends Activity implements Cloneable{
 				TextView box = findViewInTable(tempTableCoord);
 				box.setText("");
 				box.setBackgroundColor(DEFAULT_COLOR);
+				box.clearAnimation();
 
 				player.removeScore(board.calculateScore(tempTableCoord.getRow(),tempTableCoord.getColumn(),tempTree.getTile()));
 				playerView.setText(""+player.getScore());
@@ -355,11 +626,34 @@ public class BoardActivity extends Activity implements Cloneable{
 					openTileTrees.push(scoreSortedArray.get(scoreIndex).pop());
 				}
 			}
+
 		}
 
 		// Push the best node from openTileTrees to the actual PATH and print it on the board
 		TileTree tempTileTree = openTileTrees.pop();
 		TableCoordinates tempCoordinates = tempTileTree.getCoordinates();
+
+		// The tiles can be different at this time. If it is, the pop again from the path and store previous one
+		if (goBacktrack && tempTileTree.getTile() != path.peek().getTile()) {
+			// Pop from the path again
+			TileTree poppedTileTree = path.pop();
+			TableCoordinates tempTableCoord = poppedTileTree.getCoordinates();
+
+			int tileInt = deck.getNumericTileVal(currentTile);
+			stockQueue.addFirst(tileInt);
+
+			// Clear the values from display screen and board
+			board.removeTile(tempTableCoord.getRow(), tempTableCoord.getColumn());
+			deck.removeFromDeck(poppedTileTree.getTile().getNumericColorVal(), poppedTileTree.getTile().getNumericSymbolVal());
+
+			TextView box = findViewInTable(tempTableCoord);
+			box.setText("");
+			box.setBackgroundColor(DEFAULT_COLOR);
+			box.clearAnimation();
+
+
+
+		}
 		path.push(tempTileTree);
 
 		// Fill it into the board and deck of the model
@@ -387,8 +681,8 @@ public class BoardActivity extends Activity implements Cloneable{
 
 		// Get the next tile from the stock and put it in the currentTile
 		if (!stockQueue.isEmpty()) {
-			int tileInt = stockQueue.remove();
-			currentTile = Board.calculateTile(tileInt);
+			int tileInteger = stockQueue.remove();
+			currentTile = Board.calculateTile(tileInteger);
 		}
 	}
 
@@ -399,12 +693,10 @@ public class BoardActivity extends Activity implements Cloneable{
 		// This is when we first take the tile from the queue
 		if (needNewTile) {
 			// First get the new tile from the stock
-			//if (!stockQueue.isEmpty()) {
 			int tileInteger = stockQueue.remove();
 			currentTile = Board.calculateTile(tileInteger);
 
 			needNewTile = false;
-			//}
 		}
 
 		// Since we need to set a new tile once previous tile is done, check it with startingCoordinates
@@ -432,8 +724,8 @@ public class BoardActivity extends Activity implements Cloneable{
 					// Prints and updates the player score
 					TextView playerScore = (TextView) findViewById(R.id.playerScore);
 					playerScore.setText("" + player.getScore());
-					//System.out.println("The total score player has right now is "+player.getScore());
 
+					// Displays it in the board
 					TextView tempView  = findViewInTable(new TableCoordinates(master.getCoordinates().getRow(),master.getCoordinates().getColumn()));
 					tempView.setText(master.getTile().getSymbol());
 					tempView.setBackgroundColor(master.getTile().getColor());
@@ -445,23 +737,21 @@ public class BoardActivity extends Activity implements Cloneable{
 			board.fillTile(elementCoord.getRow(), elementCoord.getColumn(), elementInfo);
 			deck.recordTile(elementInfo.getNumericColorVal(), elementInfo.getNumericSymbolVal());
 
-
 			// Compute the players score for the tiles that are going to be consistent through out the whole period
 			player.addScore((board.calculateScore(elementCoord.getRow(), elementCoord.getColumn(), elementInfo)));
 
 			// Prints and updates the player score
 			TextView playerScore = (TextView) findViewById(R.id.playerScore);
 			playerScore.setText("" + player.getScore());
-			//System.out.println("The total score player has right now is " + player.getScore());
 
-			// draw
+			// draw it in the board
 			TextView box = findViewInTable(new TableCoordinates(elementCoord.getRow(),elementCoord.getColumn()));
 			box.setText(elementInfo.getSymbol());
 			box.setBackgroundColor(elementInfo.getColor());
 
 			// Check if the current tile we traversed is same as the one removed from the queue. If yes, then generate new tile. Else, stick with currentTile
-			if (!previousInQueue.isEmpty()) {
-				if (previousInQueue.getTile() == elementInfo) {
+			if (!previousTileTree.isEmpty()) {
+				if (previousTileTree.getTile() == elementInfo) {
 					needNewTile = false;
 				}
 				else {
@@ -472,7 +762,7 @@ public class BoardActivity extends Activity implements Cloneable{
 			else needNewTile = true;
 
 			// Saves the newly removed tile from the queue for parenting hierarchy with new nodes
-			previousInQueue = firstElement;
+			previousTileTree = firstElement;
 
 			// Check if we need a new element is needed
 			if (needNewTile) {
@@ -498,7 +788,7 @@ public class BoardActivity extends Activity implements Cloneable{
 				if (board.canFillTile(row, col, currentTile)) {
 					// Create a new TileTree with that tile and coordinates and point its previous tile to the previous tiletree
 
-					TileTree tileTree = new TileTree(currentTile,previousInQueue, new TableCoordinates(row,col));
+					TileTree tileTree = new TileTree(currentTile, new TableCoordinates(row,col),0, previousTileTree);
 
 					// Push it into the queue
 					searchTree.add(tileTree);
@@ -544,13 +834,18 @@ public class BoardActivity extends Activity implements Cloneable{
 
 	}
 
+	/**
+	 * Draws the given tile on the baord
+	 * @param row It is the row number in the board
+	 * @param col It is the column number in the board
+	 * @param tileInfo It is the information of the tile
+	 */
 	private void drawTile(int row, int col, TileInfo tileInfo) {
-
+		// Finds the view in the table of the cell and then changes its properties according to choice
 		TextView box = findViewInTable(new TableCoordinates(row,col));
 		if (box != null) {
 			box.setText(tileInfo.getSymbol());
 			box.setBackgroundColor(tileInfo.getColor());
-			//System.out.println("ole inside yea");
 
 			if (currentBox != null) {
 				currentBox.clearAnimation();
@@ -570,25 +865,28 @@ public class BoardActivity extends Activity implements Cloneable{
 	 */
 
 	public void performDFS() {
+		// Sets if this is the first time as false
 		boolean firstTimer = false;
 		if (needNewTile ) {
 			// First get the new tile from the stock
 			int tileInteger = stockQueue.remove();
 			currentTile = Board.calculateTile(tileInteger);
 
+			// Initializes that this is the first run
 			firstTimer = true;
 
 			needNewTile = false;
 		}
 
+		// If the search stack is not empty, then performs the depth first search
 		if (!searchStack.isEmpty() || firstTimer) {
-			// If first timer, just push it to the stack and be done!
-
 			TableCoordinates availableLocation = board.findNextAvailableLocation(0, 0, currentTile);
-			// Since this is the first tile, it is never going to be NULL
-			if (availableLocation != null) {
-				TileTree newTileTree = new TileTree(currentTile, null, availableLocation);
 
+
+			if (availableLocation != null) {
+				TileTree newTileTree = new TileTree(currentTile, availableLocation,0,null);
+
+				// Checks if the visited tile already contains the new tile tree. This is done for back tracking
 				while (visitedTiles.contains(newTileTree)) {
 					int row = newTileTree.getCoordinates().getRow();
 					int col = newTileTree.getCoordinates().getColumn();
@@ -619,7 +917,7 @@ public class BoardActivity extends Activity implements Cloneable{
 						break;
 					}
 					availableLocation = board.findNextAvailableLocation(row, col, currentTile);
-					newTileTree = new TileTree(currentTile,null,availableLocation);
+					newTileTree = new TileTree(currentTile,availableLocation,0,null);
 				}
 
 				// Push it to the stack of DFS
@@ -677,19 +975,25 @@ public class BoardActivity extends Activity implements Cloneable{
 				board.removeTile(poppedCoordinates.getRow(), poppedCoordinates.getColumn());
 				deck.removeFromDeck(poppedTileTree.getTile().getNumericColorVal(), poppedTileTree.getTile().getNumericSymbolVal());
 
-				TextView box = findViewInTable(availableLocation);
+				TextView box = findViewInTable(poppedCoordinates);
 				if (box != null) {
 					box.setText("");
 					box.setBackgroundColor(DEFAULT_COLOR);
+					box.clearAnimation();
 				}
 			}
 		}
 	}
 
-
+	/**
+	 * Finds the cell view in the TableLayout since it cannot be directly found
+	 * @param inputCoordinates It is the given coordinates for the cell
+	 * @return
+	 */
 	private TextView findViewInTable(TableCoordinates inputCoordinates) {
 		TableLayout tableLayout = (TableLayout) findViewById(R.id.givenGrid);
 
+		// Loops through each cell view and checks if it matches with the coordinates with the view tag
 		for (int rows=0; rows<tableLayout.getChildCount(); ++rows) {
 			TableRow tableRow = (TableRow) tableLayout.getChildAt(rows);
 
@@ -699,11 +1003,11 @@ public class BoardActivity extends Activity implements Cloneable{
 				if (boxCoordinates.getRow() == inputCoordinates.getRow() && boxCoordinates.getColumn() == inputCoordinates.getColumn()) {
 					return box;
 				}
-				//Toast.makeText(getApplicationContext(), "" + box, Toast.LENGTH_SHORT).show();
 			}
 		}
 		return null;
 	}
+
 	/**
 	 * Handles the onClickListener for the game board and performs the operation such as updating the table, player score, game deck
 	 */

@@ -33,7 +33,13 @@ public class Deck implements Cloneable{
         totalTilesUsed = 0;
     }
 
+    /**
+     * Removes the given combination from the board
+     * @param color It consists the numeric color value
+     * @param symbol It consists of the numeric symbol value
+     */
     public void removeFromDeck(int color, int symbol) {
+        // Deletes it from the deck and decrements the total tiles used
         deckEntries[color][symbol]--;
         totalTilesUsed--;
     }
@@ -112,6 +118,11 @@ public class Deck implements Cloneable{
         return ROW_COLUMN_NUMBER;
     }
 
+    /**
+     * Gets the numeric value of the tile from the TileInfo object provided
+     * @param tile It consists of the tile needed to numerically convert
+     * @return Returns the integer value of the tile
+     */
     public int getNumericTileVal(TileInfo tile ) {
         int total = 0;
 

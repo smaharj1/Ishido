@@ -172,20 +172,20 @@ public class Board implements Cloneable{
      * @return Returns true if the board cannot place any tiles i.e. it represents the board is done with solutions
      */
     public boolean isDone(Deck deck) {
+        boolean freeTiles = true;
         // Go through each and every cells in the board and check if there are empty cells where tiles can be placed.
         for (int row = 0; row < TOTAL_ROWS; ++row) {
             for (int column = 0; column < TOTAL_COLUMNS; ++column) {
                 // Each cell is represented by board[row][column]
                 // Check if the current cell is empty. Only go forward if it is null
                 if (board[row][column] == null) {
-                    if (checkTileAvailability(row, column, deck)) {
-                        return false;
-                    }
+                    return false;
+//                    if (checkTileAvailability(row, column, deck)) {
+//                        return false;
+//                    }
                 }
             }
         }
-
-
         return true;
     }
 

@@ -103,7 +103,7 @@ public class Deck implements Cloneable{
      * @return Returns true if all of the tiles are used.
      */
     public boolean isDone() {
-        if (totalTilesUsed >= 72) {
+        if (totalTilesUsed > 72) {
             return true;
         }
         return false;
